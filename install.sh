@@ -56,6 +56,7 @@ if [[ -d "$INSTALL_DIR" ]]; then
 else
     mkdir -p "$(dirname "$INSTALL_DIR")"
     git clone "$REPO_URL" "$INSTALL_DIR"
+    rm -r "$INSTALL_DIR/.git"
 fi
 
 cd "$INSTALL_DIR" || error_msg "Failed to access installation directory"
