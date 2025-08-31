@@ -91,7 +91,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='HTTP server with auto-reload')
     parser.add_argument('directory', default='.', help='Directory to serve (default: current directory)')
-    parser.add_argument('-b', '--bind', type=str, default='0.0.0.0', help="Valid host to bind (default: 0.0.0.0)")
+    parser.add_argument('-H', '--host', type=str, default='0.0.0.0', help="Valid host to bind (default: 0.0.0.0)")
     parser.add_argument('-p', '--port', type=int, default=8000, help='Port to serve on (default: 8000)')
     parser.add_argument('-e', '--extensions', default='.html,.css,.js', help='File extensions separated by commas to watch for changes (default: \'.html,.css,.js\')')
     parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose logging')
@@ -108,7 +108,7 @@ def main():
         logger.error("Install with: \n\tpip install watchdog")
         sys.exit(1)
 
-    server = AutoReloadServer(host=args.bind ,port=args.port, directory=args.directory, *args.extensions.split(','))
+    server = AutoReloadServer(args.host, args.port, args.directory, *args.extensions.split(','))
     server.run_with_autoreload()
 
 if __name__ == '__main__':
