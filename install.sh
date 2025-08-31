@@ -1,47 +1,82 @@
 #!/bin/bash
-if ! command -v apt &> /dev/null; then
-    echo -e "\e[33mThis script is intended for Debian-based systems. Exiting.\e[0m"
+
+set -e
+
+REPO_URL="https://github.com/ndy7stillx86ihz/hhotserve.git"
+INSTALL_DIR="$HOME/.local/opt/hhotserve"
+BIN_DIR="$HOME/.local/bin"
+
+error_msg() {
+    echo -e "\e[31m$1\e[0m" >&2
     exit 1
+}
+
+success_msg() {
+    echo -e "\e[32m$1\e[0m"
+}
+
+warn_msg() {
+    echo -e "\e[33m$1\e[0m"
+}
+
+if ! command -v apt &> /dev/null; then
+    error_msg "This script is intended for Debian-based systems. Exiting."
 fi
+
 if ! command -v python3 &> /dev/null; then
     read -p "Python3 is not installed. Do you want to install it? (y/n): " choice
     if [[ "$choice" == "y" ]]; then
-      sudo apt install python3 -y
+        sudo apt update && sudo apt install python3 -y
     else
-echo -e "\e[33mPython3 is required. Exiting.\e[0m"
-        exit 1
+        error_msg "Python3 is required. Exiting."
     fi
 fi
-if ! command -v watchmedo &> /dev/null; then
+
+if ! python3 -c "import watchdog" &> /dev/null; then
     read -p "watchdog is not installed. Do you want to install it? (y/n): " choice
     if [[ "$choice" == "y" ]]; then
-      sudo apt install python3-watchdog -y
+        sudo apt update && sudo apt install python3-watchdog -y
     else
-        echo -e "\e[33mwatchdog python dependency is required. Exiting.\e[0m"
-        exit 1
+        error_msg "watchdog python dependency is required. Exiting."
     fi
 fi
+
 if ! command -v git &> /dev/null; then
     read -p "git is not installed. Do you want to install it? (y/n): " choice
     if [[ "$choice" == "y" ]]; then
-      sudo apt install git -y
+        sudo apt update && sudo apt install git -y
     else
-        echo -e "\e[33mgit is required. Exiting.\e[0m"
-        exit 1
+        error_msg "git is required. Exiting."
     fi
 fi
 
-mkdir -p ~/.local/opt/hhotserve
-cd ~/.local/opt/hhotserve || exit
-git clone https://github.com/ndy7stillx86ihz/hhotserve.git
-cd hhotserve || exit
-chmod +x hhotserve.py
-ln -s "$HOME"/.local/opt/hhotserve/hhotserve.py ~/.local/bin/hhotserve
-
-if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-    echo "Added ~/.local/bin to PATH. Please restart your terminal or run 'source ~/.bashrc' or 'source ~/.zshrc'."
+if [[ -d "$INSTALL_DIR" ]]; then
+    warn_msg "Previous installation found. Updating..."
+    cd "$INSTALL_DIR" && git pull
+else
+    mkdir -p "$(dirname "$INSTALL_DIR")"
+    git clone "$REPO_URL" "$INSTALL_DIR"
 fi
 
-echo -e "\e[32mInstallation complete. You can run the program using the command 'hhotserve'.\e[0m"
+cd "$INSTALL_DIR" || error_msg "Failed to access installation directory"
+chmod +x hhotserve.py
+
+mkdir -p "$BIN_DIR"
+ln -sf "$INSTALL_DIR/hhotserve.py" "$BIN_DIR/hhotserve"
+
+if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
+    for shell_rc in ~/.bashrc ~/.zshrc; do
+        if [[ -f "$shell_rc" ]]; then
+            echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$shell_rc"
+        fi
+    done
+    warn_msg "Added ~/.local/bin to PATH. Please restart your terminal or run 'source ~/.bashrc'."
+fi
+
+success_msg "Installation complete. You can run the program using the command 'hhotserve'."
+
+if command -v hhotserve &> /dev/null; then
+    success_msg "✓ 'hhotserve' command is ready to use!"
+else
+    warn_msg "Please restart your terminal or run 'source ~/.bashrc' to use 'hhotserve'."
+fi
