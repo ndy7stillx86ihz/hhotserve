@@ -3,7 +3,7 @@
 Server that serves static files and supports hot reloading for web development extending `http.server` and `watchdog`.
 
 ## Installation and usage
-- **Using the installation script**
+- **Using the installation script (easiest way)**
 ```bash
 curl -sSL https://raw.githubusercontent.com/ndy7stillx86ihz/hhotserve/main/install.sh | bash
 ```

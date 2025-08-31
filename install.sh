@@ -17,6 +17,7 @@ print_status() {
         "install") echo -e "\e[36m⬇\e[0m  Installing $message..." ;;
         "check")   echo -e "\e[37m○\e[0m  Checking $message..." ;;
     esac
+    sleep 0.15
 }
 
 spinner() {
@@ -37,12 +38,16 @@ run_silent() {
     local description="$1"
     shift
     print_status "install" "$description"
-    if "$@" &>/dev/null; then
+    sleep 0.15
+
+    local output
+    if output=$("$@" 2>&1); then
         printf "\r"
         print_status "success" "$description installed"
     else
         printf "\r"
         print_status "error" "Failed to install $description"
+        echo -e "\e[31m$output\e[0m" >&2
         exit 1
     fi
 }
@@ -54,6 +59,7 @@ check_requirement() {
     local install_cmd="$4"
 
     print_status "check" "$description"
+    sleep 0.15
 
     if command -v "$cmd" &> /dev/null; then
         print_status "success" "$description found"
@@ -61,6 +67,7 @@ check_requirement() {
     fi
 
     print_status "warn" "$description not found"
+    sleep 0.15
     read -p "$(echo -e "\e[33m?\e[0m")  Install $description? (y/n): " choice
 
     if [[ "$choice" == "y" || "$choice" == "Y" ]]; then
@@ -71,37 +78,32 @@ check_requirement() {
     fi
 }
 
-check_python_module() {
-    local module="$1"
-    local description="$2"
+update_package_list() {
+    print_status "info" "Updating package list"
+    sleep 0.15
 
-    print_status "check" "$description"
-
-    if python3 -c "import $module" &> /dev/null; then
-        print_status "success" "$description found"
-        return 0
-    fi
-
-    print_status "warn" "$description not found"
-    read -p "$(echo -e "\e[33m?\e[0m")  Install $description? (y/n): " choice
-
-    if [[ "$choice" == "y" || "$choice" == "Y" ]]; then
-        run_silent "$description" python3 -m pip install --user "$module"
+    local output
+    if output=$(sudo apt update 2>&1); then
+        print_status "success" "Package list updated"
     else
-        print_status "error" "$description is required"
+        print_status "error" "Failed to update package list"
+        echo -e "\e[31m$output\e[0m" >&2
         exit 1
     fi
 }
 
 check_existing_installation() {
     print_status "check" "Existing installation"
+    sleep 0.15
 
     if command -v hhotserve &> /dev/null || [[ -d "$INSTALL_DIR" ]]; then
         print_status "warn" "Previous installation detected"
+        sleep 0.15
         read -p "$(echo -e "\e[33m?\e[0m")  Remove existing installation and reinstall? (y/n): " choice
 
         if [[ "$choice" == "y" || "$choice" == "Y" ]]; then
             print_status "install" "Removing previous installation"
+            sleep 0.15
 
             if [[ -L "$BIN_DIR/hhotserve" ]]; then
                 rm -f "$BIN_DIR/hhotserve" &>/dev/null || true
@@ -123,17 +125,20 @@ check_existing_installation() {
 
 install_hhotserve() {
     print_status "install" "Downloading hhotserve"
+    sleep 0.15
 
     mkdir -p "$(dirname "$INSTALL_DIR")" &>/dev/null
 
     if git clone "$REPO_URL" "$INSTALL_DIR" &>/dev/null; then
         print_status "success" "hhotserve downloaded"
+        sleep 0.15
     else
         print_status "error" "Failed to download hhotserve"
         exit 1
     fi
 
     print_status "install" "Cleaning up repository files"
+    sleep 0.15
     if [[ -d "$INSTALL_DIR/.git" ]]; then
         rm -rf "$INSTALL_DIR/.git" &>/dev/null
         print_status "success" "Repository cleanup completed"
@@ -142,6 +147,7 @@ install_hhotserve() {
 
 setup_executable() {
     print_status "info" "Setting up executable"
+    sleep 0.15
 
     cd "$INSTALL_DIR" || {
         print_status "error" "Failed to access installation directory"
@@ -162,6 +168,7 @@ setup_executable() {
 setup_path() {
     if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
         print_status "info" "Configuring PATH"
+        sleep 0.15
 
         local path_added=false
         for shell_rc in ~/.bashrc ~/.zshrc ~/.profile; do
@@ -175,6 +182,7 @@ setup_path() {
 
         if $path_added; then
             print_status "success" "PATH configured"
+            sleep 0.15
             print_status "warn" "Restart terminal or run 'source ~/.bashrc' to use 'hhotserve'"
         fi
     else
@@ -184,12 +192,15 @@ setup_path() {
 
 verify_installation() {
     print_status "check" "Installation verification"
+    sleep 0.15
 
     if [[ -x "$INSTALL_DIR/hhotserve.py" ]] && [[ -L "$BIN_DIR/hhotserve" ]]; then
         print_status "success" "Installation verified"
+        sleep 0.15
 
         if command -v hhotserve &> /dev/null; then
             print_status "success" "✓ 'hhotserve' command is ready to use!"
+            sleep 0.15
             print_status "info" "Run 'hhotserve --help' to see usage options"
         else
             print_status "warn" "Restart your terminal to use 'hhotserve' command"
@@ -207,8 +218,10 @@ main() {
     echo "║   HTTP Hot Reload Server Setup       ║"
     echo "╚══════════════════════════════════════╝"
     echo -e "\e[0m"
+    sleep 0.15
 
     print_status "check" "System compatibility"
+    sleep 0.15
     if command -v apt &> /dev/null; then
         print_status "success" "Debian-based system detected"
     else
@@ -216,24 +229,26 @@ main() {
         exit 1
     fi
 
-    check_requirement "python3" "python3" "Python3" "sudo apt update && sudo apt install python3 -y"
-    check_requirement "git" "git" "Git" "sudo apt update && sudo apt install git -y"
+    update_package_list
 
-    if ! command -v pip3 &> /dev/null; then
-        print_status "check" "pip3"
-        print_status "warn" "pip3 not found"
-        read -p "$(echo -e "\e[33m?\e[0m")  Install pip3? (y/n): " choice
+    check_requirement "python3" "python3" "Python3" "sudo apt install python3 -y"
+    check_requirement "git" "git" "Git" "sudo apt install git -y"
+
+    print_status "check" "Python watchdog module"
+    sleep 0.15
+    if python3 -c "import watchdog" &> /dev/null; then
+        print_status "success" "Python watchdog module found"
+    else
+        print_status "warn" "Python watchdog module not found"
+        sleep 0.15
+        read -p "$(echo -e "\e[33m?\e[0m")  Install Python watchdog module? (y/n): " choice
         if [[ "$choice" == "y" || "$choice" == "Y" ]]; then
-            run_silent "pip3" sudo apt update && sudo apt install python3-pip -y
+            run_silent "Python watchdog module" sudo apt install python3-watchdog -y
         else
-            print_status "error" "pip3 is required"
+            print_status "error" "Python watchdog module is required"
             exit 1
         fi
-    else
-        print_status "success" "pip3 found"
     fi
-
-    check_python_module "watchdog" "Python watchdog module"
 
     check_existing_installation
     install_hhotserve
@@ -242,7 +257,9 @@ main() {
     verify_installation
 
     echo
+    sleep 0.15
     print_status "success" "Installation completed successfully!"
+    sleep 0.15
     echo -e "\e[1;32m"
     echo "╔══════════════════════════════════════╗"
     echo "║            READY TO USE!             ║"
@@ -252,3 +269,5 @@ main() {
     echo "╚══════════════════════════════════════╝"
     echo -e "\e[0m"
 }
+
+main
